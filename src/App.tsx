@@ -3,107 +3,43 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle2, Sparkles, MessageCircle, Phone, Award, ShieldCheck, 
-  ChevronDown, ChevronUp, Star, ArrowRight, Play, X, Heart, 
-  Clock, Package, RefreshCw, Leaf, Coffee, Smile, AlertCircle, Info
+  CheckCircle2, Sparkles, MessageCircle, Award, ShieldCheck, 
+  ChevronDown, ChevronUp, Star, ArrowRight, Play, Package, AlertCircle
 } from 'lucide-react';
 
-// Package data
-interface PackageOption {
-  id: string;
-  name: string;
-  boxes: number;
-  price: number;
-  originalPrice: number;
-  savings: number;
-  tag?: string;
-  popular?: boolean;
-}
-
-const PACKAGES: PackageOption[] = [
-  {
-    id: 'pkg-1',
-    name: '体验装 (1盒)',
-    boxes: 1,
-    price: 168,
-    originalPrice: 168,
-    savings: 0,
-  },
-  {
-    id: 'pkg-2',
-    name: '热销推荐装 (2盒)',
-    boxes: 2,
-    price: 288,
-    originalPrice: 336,
-    savings: 48,
-    popular: true,
-    tag: '只需多加 RM120，就能多拿1盒！'
-  },
-  {
-    id: 'pkg-3',
-    name: '疗程巩固装 (3盒)',
-    boxes: 3,
-    price: 414,
-    originalPrice: 504,
-    savings: 90,
-    tag: '超值划算'
-  },
-  {
-    id: 'pkg-4',
-    name: '买4送2 (6盒)',
-    boxes: 6,
-    price: 672,
-    originalPrice: 1008,
-    savings: 336,
-    tag: '全家共享首选'
-  },
-  {
-    id: 'pkg-5',
-    name: '买8送4 (12盒)',
-    boxes: 12,
-    price: 1240,
-    originalPrice: 2016,
-    savings: 776,
-    tag: '长期调理最优惠'
-  }
-];
+import { PackageOption } from './types';
+import { PACKAGES, REVIEWS_DATA, TESTIMONIALS_DATA, FAQ_DATA } from './data/catalog';
+import { getWhatsAppUrl, openWhatsApp } from './lib/whatsapp';
+import { initAnalytics, trackEvent } from './lib/analytics';
+import { LeadModal } from './components/LeadModal';
+import { PrivacyModal } from './components/PrivacyModal';
+import { VideoModal } from './components/VideoModal';
 
 export default function App() {
   const [selectedPkg, setSelectedPkg] = useState<PackageOption>(PACKAGES[1]); // Default to 2 boxes
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-  const [leadName, setLeadName] = useState('');
-  const [leadPhone, setLeadPhone] = useState('');
-  const [leadSuccess, setLeadSuccess] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [leadModalSource, setLeadModalSource] = useState('pricing');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
-  const [selectedCert, setSelectedCert] = useState<string | null>(null);
-  const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null);
-  const [activeTestimonialTab, setActiveTestimonialTab] = useState<'all' | 'constipation' | 'bloating' | 'digestion'>('all');
+  const [activeVideoTitle, setActiveVideoTitle] = useState<string | null>(null);
 
-  const handleOpenLeadModal = (pkg?: PackageOption) => {
+  useEffect(() => {
+    initAnalytics();
+    trackEvent('PageView');
+  }, []);
+
+  const handleOpenLeadModal = (source: string, pkg?: PackageOption) => {
     if (pkg) setSelectedPkg(pkg);
+    setLeadModalSource(source);
     setIsLeadModalOpen(true);
-    setLeadSuccess(false);
+    trackEvent('LeadModalOpen', { source, package_id: selectedPkg.id });
   };
 
-  const handleWhatsAppInquiry = (customText?: string) => {
-    const text = customText || `您好，我想了解 D’ Joy Plus 的产品及配套资料 (${selectedPkg.name} - RM${selectedPkg.price})。`;
-    // Using official wa.link or wa.me format for Malaysian sales team
-    const encoded = encodeURIComponent(text);
-    window.open(`https://wa.me/601112345678?text=${encoded}`, '_blank');
-  };
-
-  const handleSubmitLead = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leadName.trim() || !leadPhone.trim()) {
-      alert('请填写您的姓名与联络号码');
-      return;
-    }
-    setLeadSuccess(true);
-    setTimeout(() => {
-      handleWhatsAppInquiry(`您好，我是 ${leadName} (电话: ${leadPhone})，我想订购 ${selectedPkg.name} (RM${selectedPkg.price})。请联系我！`);
-    }, 1200);
+  const handleWhatsApp = (source: string, customText?: string) => {
+    trackEvent('Contact', { method: 'WhatsApp', source });
+    openWhatsApp(customText);
   };
 
   return (
@@ -114,8 +50,8 @@ export default function App() {
         <Sparkles className="w-4 h-4 text-[#FFD43B] animate-pulse" />
         <span>法国配方高纤维酵素 · 肠道轻盈新体验 | 全马现货免邮支持</span>
         <button 
-          onClick={() => handleOpenLeadModal()}
-          className="hidden md:inline-block ml-3 bg-[#FFD43B] text-[#650F16] px-2.5 py-0.5 rounded-full text-xs font-bold hover:bg-yellow-300 transition"
+          onClick={() => handleOpenLeadModal('top_banner')}
+          className="hidden md:inline-block ml-3 bg-[#FFD43B] text-[#650F16] px-2.5 py-0.5 rounded-full text-xs font-bold hover:bg-yellow-300 transition cursor-pointer"
         >
           立即咨询
         </button>
@@ -147,7 +83,7 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleWhatsAppInquiry()}
+              onClick={() => handleWhatsApp('header_button')}
               className="bg-[#008C9E] hover:bg-[#007382] text-white px-4 sm:px-5 py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
@@ -206,7 +142,7 @@ export default function App() {
                   <span>查看特惠配套 / 立即抢购</span>
                 </button>
                 <button
-                  onClick={() => handleWhatsAppInquiry("您好，我想索取 D’ Joy Plus 详细产品资料与专业咨询。")}
+                  onClick={() => handleOpenLeadModal('hero_consult')}
                   className="w-full sm:w-auto bg-white hover:bg-gray-50 text-[#008C9E] border-2 border-[#008C9E] text-base font-bold px-6 py-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <MessageCircle className="w-5 h-5 text-[#008C9E]" />
@@ -237,6 +173,8 @@ export default function App() {
                   <img 
                     src="/public/assets/aistudio/D_Joy_Plus_botanical_sachets_4b889186.jpg" 
                     alt="D' Joy Plus 高纤维酵素包装与独立条装" 
+                    loading="eager"
+                    fetchPriority="high"
                     className="w-full h-auto rounded-2xl object-cover shadow-md hover:scale-[1.02] transition duration-500"
                   />
                   <div className="mt-4 flex items-center justify-between text-xs font-bold text-gray-500 px-2">
@@ -271,6 +209,7 @@ export default function App() {
                 <img 
                   src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80" 
                   alt="经常外食、饮食油腻" 
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute top-3 left-3 bg-[#FF963B] text-white text-xs font-bold px-3 py-1 rounded-full shadow">
@@ -286,6 +225,7 @@ export default function App() {
                 <img 
                   src="https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80" 
                   alt="蔬菜水果吃得少" 
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute top-3 left-3 bg-[#A8DF45] text-[#292929] text-xs font-bold px-3 py-1 rounded-full shadow">
@@ -301,6 +241,7 @@ export default function App() {
                 <img 
                   src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80" 
                   alt="久坐、运动量不足" 
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute top-3 left-3 bg-[#008C9E] text-white text-xs font-bold px-3 py-1 rounded-full shadow">
@@ -316,6 +257,7 @@ export default function App() {
                 <img 
                   src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80" 
                   alt="三餐不定时、吃得太快" 
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute top-3 left-3 bg-[#F45B79] text-white text-xs font-bold px-3 py-1 rounded-full shadow">
@@ -581,8 +523,8 @@ export default function App() {
                     <p className="text-xs text-gray-600">吸水膨胀，使排便更顺畅、告别蹲马桶半小时的痛苦。</p>
                   </div>
                   <div className="bg-[#F8FCFD] p-5 rounded-2xl border border-gray-100">
-                    <h4 className="font-bold text-[#008C9E] mb-1">温和无腹痛</h4>
-                    <p className="text-xs text-gray-600">不含刺激性泻药成分，安全顺畅不绞痛。</p>
+                    <h4 className="font-bold text-[#008C9E] mb-1">温和科学支持</h4>
+                    <p className="text-xs text-gray-600">采用温和植物纤维成分，助力日常肠道规律运作。</p>
                   </div>
                 </div>
               </div>
@@ -628,6 +570,7 @@ export default function App() {
                   <img 
                     src="/public/assets/aistudio/D_Joy_Plus_six-angle_product_reference_c94ed8f7.jpg" 
                     alt="D' Joy Plus 多角度包装展示" 
+                    loading="lazy"
                     className="w-full h-auto rounded-2xl object-cover shadow"
                   />
                 </div>
@@ -728,44 +671,7 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                name: '1. 槟城林太太 (62岁)',
-                comment: '以前经常两三天上不到厕所，肚子胀得很难受。喝了D’ Joy Plus几天后，现在每天早上都顺畅很多，整个人轻松了！',
-                source: 'Google 真实评价',
-                stars: 5
-              },
-              {
-                name: '2. 吉隆坡陈先生 (55岁)',
-                comment: '应酬多、常常胃胀胃气多。朋友介绍这款法国配方酵素，饭后喝一杯感觉舒服很多，不会顶着胃了。',
-                source: 'Facebook 顾客分享',
-                stars: 5
-              },
-              {
-                name: '3. 新山黄女士 (48岁)',
-                comment: '味道酸甜很好入口，不像有些纤维粉很难喝。独立条装带去公司或出门旅游泡一杯很方便，非常推荐！',
-                source: 'Google 真实评价',
-                stars: 5
-              },
-              {
-                name: '4. 怡保张先生 (68岁)',
-                comment: '年纪大了消化比较慢，容易胃口不好。现在每天中午饭后喝一包，消化顺畅了，胃口也开朗了。',
-                source: 'Facebook 顾客分享',
-                stars: 5
-              },
-              {
-                name: '5. 八打灵再也王女士 (51岁)',
-                comment: '客服态度很好，发货也快。最重要的是成份天然温和，喝了不会绞痛，是全家人的肠胃好帮手。',
-                source: 'Google 真实评价',
-                stars: 5
-              },
-              {
-                name: '6. 马六甲李先生 (59岁)',
-                comment: '买给家里长辈试看，结果长辈非常满意，现在叫我定期补货。感谢D’ Joy Plus！',
-                source: 'Facebook 顾客分享',
-                stars: 5
-              }
-            ].map((rev, idx) => (
+            {REVIEWS_DATA.map((rev, idx) => (
               <div key={idx} className="bg-[#F8FCFD] p-6 rounded-2xl border border-[#DDF9FC] shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-1 text-amber-400 mb-3">
@@ -805,26 +711,7 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                title: '便秘困扰改善分享：重拾每日顺畅',
-                category: '便秘调理',
-                desc: '分享者分享了多年排便不顺、蹲马桶痛苦，到使用 D’ Joy Plus 后恢复每日定时顺畅的转变。',
-                author: '林女士 (58岁，家庭主妇)'
-              },
-              {
-                title: '饭后胃胀大改善：享受美食不再担惊受怕',
-                category: '胃胀消除',
-                desc: '探讨如何通过复合消化酵素缓解饭后胃气胀、饱胀感，找回轻松自在的饮食乐趣。',
-                author: '陈先生 (61岁，退休人士)'
-              },
-              {
-                title: '日常消化与全家养生保健心得',
-                category: '日常养生',
-                desc: '分享全家人如何将 D’ Joy Plus 融入日常饮食中，作为温和补充纤维与果蔬营养的长期保养秘诀。',
-                author: '王太太 (53岁，行政主管)'
-              }
-            ].map((testi, idx) => (
+            {TESTIMONIALS_DATA.map((testi, idx) => (
               <div key={idx} className="bg-white rounded-3xl overflow-hidden shadow-md border border-[#DDF9FC] flex flex-col justify-between">
                 <div className="relative h-48 bg-gradient-to-br from-[#008C9E] to-[#00C6D7] flex items-center justify-center p-6 text-center text-white">
                   <div className="absolute inset-0 bg-black/10"></div>
@@ -835,7 +722,7 @@ export default function App() {
                     <h3 className="text-lg font-bold tracking-tight">{testi.title}</h3>
                   </div>
                   <button 
-                    onClick={() => setActiveVideoModal(testi.title)}
+                    onClick={() => setActiveVideoTitle(testi.title)}
                     className="absolute bottom-4 right-4 bg-white text-[#008C9E] w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition cursor-pointer"
                   >
                     <Play className="w-5 h-5 fill-[#008C9E] ml-0.5" />
@@ -913,6 +800,7 @@ export default function App() {
                   <img 
                     src="/public/assets/aistudio/D_Joy_Plus_Sachet_Multi-Angle_Showcase_2346ad53.jpg" 
                     alt="D' Joy Plus 独立条装多角度展示" 
+                    loading="lazy"
                     className="w-full h-auto rounded-2xl object-cover shadow"
                   />
                   <div className="mt-4 text-center">
@@ -943,44 +831,7 @@ export default function App() {
           </div>
 
           <div className="space-y-4">
-            {[
-              {
-                q: 'D’ Joy Plus 是什么？',
-                a: 'D’ Joy Plus 是一款结合复合消化酵素、膳食纤维与多元果蔬营养成分的植物饮品冲调产品，具体配方与成份说明请参阅产品包装标示。'
-              },
-              {
-                q: '排便不顺畅的人适合吗？',
-                a: '膳食纤维有助增加粪便体积与维持正常排便；产品性质温和，是否适合需视个人体质与饮食习惯而定。'
-              },
-              {
-                q: '经常胃胀可以喝吗？',
-                a: '产品含有复合消化酵素配方，可为日常饮食提供消化营养支持。若胃胀情况持续，建议咨询专业医生。'
-              },
-              {
-                q: '消化不良可以喝吗？',
-                a: '可以。DigeSEB Pro™ 复合酵素配方专门协助碳水化合物、蛋白质与脂肪的日常分解，饭后饮用更舒适。'
-              },
-              {
-                q: '多久才会有感觉？',
-                a: '个别使用体验因人而异，取决于个人体质、饮食习惯与水分摄取量，本产品不保证特定时间或结果。'
-              },
-              {
-                q: '怎样冲泡、每天喝多少？',
-                a: '建议每日 1-2 包，以 150ml-200ml 温/冷水冲泡搅拌均匀饮用。详细说明请参考产品包装及冲泡指南。'
-              },
-              {
-                q: '长期服药或有慢性疾病可以喝吗？',
-                a: '孕妇、哺乳期妇女或长期服药及有特殊健康状况者，建议在饮用前先向主治医生或药剂师咨询确认。'
-              },
-              {
-                q: '如何购买、付款及配送？',
-                a: '我们提供全马现货速递与安全的下单服务。您可以直接在下方选择配套并点击咨询或下单，由中文客服为您安排。'
-              },
-              {
-                q: '有售后服务吗？',
-                a: '有的。我们拥有专业的中文客服团队，为您解答任何产品使用及配送相关问题。'
-              }
-            ].map((faq, idx) => {
+            {FAQ_DATA.map((faq, idx) => {
               const isOpen = activeFaq === idx;
               return (
                 <div key={idx} className="bg-white rounded-2xl border border-[#DDF9FC] shadow-xs overflow-hidden transition">
@@ -1094,7 +945,7 @@ export default function App() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedPkg(pkg);
-                      handleOpenLeadModal(pkg);
+                      handleOpenLeadModal('pricing_card', pkg);
                     }}
                     className={`w-full py-3.5 rounded-2xl font-bold text-base transition shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                       pkg.popular
@@ -1112,17 +963,17 @@ export default function App() {
 
           <div className="mt-16 bg-[#F8FCFD] p-8 rounded-3xl border border-[#DDF9FC] max-w-3xl mx-auto text-center space-y-4">
             <h3 className="text-xl font-bold text-[#292929]">已选择：<span className="text-[#008C9E]">{selectedPkg.name} (RM {selectedPkg.price})</span></h3>
-            <p className="text-sm text-gray-600">点击下方按钮，立即通过 WhatsApp 与客服确认订单与收货地址，快速安排发货。</p>
+            <p className="text-sm text-gray-600">点击下方按钮，立即通过咨询表单或 WhatsApp 与客服确认订单，快速安排发货。</p>
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
               <button
-                onClick={() => handleOpenLeadModal()}
+                onClick={() => handleOpenLeadModal('pricing_summary', selectedPkg)}
                 className="bg-[#008C9E] hover:bg-[#007382] text-white font-black text-lg px-8 py-4 rounded-2xl shadow-lg transition flex items-center gap-2 cursor-pointer"
               >
                 <Package className="w-5 h-5" />
-                <span>填写资料并提交订单</span>
+                <span>填写资料并提交咨询</span>
               </button>
               <button
-                onClick={() => handleWhatsAppInquiry()}
+                onClick={() => handleWhatsApp('pricing_summary', `您好，我想了解 ${selectedPkg.name} (RM ${selectedPkg.price}) 的详情与购买流程。`)}
                 className="bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-base px-6 py-4 rounded-2xl shadow-lg transition flex items-center gap-2 cursor-pointer"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -1176,7 +1027,7 @@ export default function App() {
                 有任何产品疑问或配套咨询，欢迎随时联系我们的专业中文客服团队。
               </p>
               <button
-                onClick={() => handleWhatsAppInquiry()}
+                onClick={() => handleWhatsApp('footer_widget')}
                 className="bg-[#008C9E] hover:bg-[#007382] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
@@ -1186,6 +1037,21 @@ export default function App() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-xs text-gray-500 space-y-3">
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setIsPrivacyOpen(true)}
+                className="hover:text-white underline cursor-pointer"
+              >
+                隐私政策 (Privacy Policy)
+              </button>
+              <span>|</span>
+              <button
+                onClick={() => setIsPrivacyOpen(true)}
+                className="hover:text-white underline cursor-pointer"
+              >
+                服务条款 (Terms & Conditions)
+              </button>
+            </div>
             <p>
               © {new Date().getFullYear()} D’ Joy Plus (M-Plan Sdn. Bhd.) 版权所有。All Rights Reserved.
             </p>
@@ -1204,15 +1070,15 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleWhatsAppInquiry()}
-            className="bg-[#25D366] text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow"
+            onClick={() => handleWhatsApp('sticky_bar')}
+            className="bg-[#25D366] text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer"
           >
             <MessageCircle className="w-4 h-4" />
             <span>咨询</span>
           </button>
           <button
-            onClick={() => handleOpenLeadModal()}
-            className="bg-[#FFD43B] text-[#650F16] px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow"
+            onClick={() => handleOpenLeadModal('sticky_bar', selectedPkg)}
+            className="bg-[#FFD43B] text-[#650F16] px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer"
           >
             <Package className="w-4 h-4" />
             <span>立即订购</span>
@@ -1220,110 +1086,24 @@ export default function App() {
         </div>
       </div>
 
-      {/* Lead / Order Modal */}
-      {isLeadModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 relative shadow-2xl animate-in fade-in zoom-in duration-200">
-            <button
-              onClick={() => setIsLeadModalOpen(false)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Modals */}
+      <LeadModal
+        isOpen={isLeadModalOpen}
+        onClose={() => setIsLeadModalOpen(false)}
+        selectedPkg={selectedPkg}
+        ctaSource={leadModalSource}
+        onOpenPrivacy={() => setIsPrivacyOpen(true)}
+      />
 
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-[#008C9E]/10 text-[#008C9E] flex items-center justify-center mx-auto mb-3">
-                <Package className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-black text-[#292929]">确认订购 / 咨询详情</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                已选配套：<strong className="text-[#008C9E]">{selectedPkg.name} (RM {selectedPkg.price})</strong>
-              </p>
-            </div>
+      <PrivacyModal
+        isOpen={isPrivacyOpen}
+        onClose={() => setIsPrivacyOpen(false)}
+      />
 
-            {leadSuccess ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center space-y-3">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                <h4 className="text-lg font-bold text-emerald-900">提交成功！</h4>
-                <p className="text-xs text-emerald-700">正在为您跳转至 WhatsApp 连接专属中文客服...</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitLead} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">您的姓名 *</label>
-                  <input
-                    type="text"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                    placeholder="请输入您的姓名 (如: 陈先生 / 林太太)"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#008C9E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">马来西亚 WhatsApp 联络号码 *</label>
-                  <input
-                    type="tel"
-                    value={leadPhone}
-                    onChange={(e) => setLeadPhone(e.target.value)}
-                    placeholder="例如: 012-3456789"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#008C9E]"
-                  />
-                </div>
-
-                <div className="bg-[#F8FCFD] p-4 rounded-xl border border-[#DDF9FC] text-xs text-gray-600">
-                  💡 提交后将自动开启 WhatsApp 与客服对话，安排全马包邮及付款事宜。
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#FFD43B] hover:bg-[#ffcb14] text-[#650F16] font-black py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-base"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>立即通过 WhatsApp 确认订单</span>
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Video Testimonial Modal */}
-      {activeVideoModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 relative shadow-2xl">
-            <button
-              onClick={() => setActiveVideoModal(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="text-center space-y-4 pt-2">
-              <div className="w-16 h-16 rounded-full bg-[#008C9E]/10 text-[#008C9E] flex items-center justify-center mx-auto">
-                <Play className="w-8 h-8 fill-[#008C9E] ml-1" />
-              </div>
-              <h3 className="text-xl font-bold text-[#292929]">{activeVideoModal}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                真实用家分享：通过日常补充 D’ Joy Plus 膳食纤维与复合酵素，肠胃恢复轻松规律。
-              </p>
-              <div className="bg-[#DDF9FC] p-4 rounded-xl text-xs text-[#008C9E] font-medium">
-                注：个别使用体验因人而异。
-              </div>
-              <button
-                onClick={() => {
-                  setActiveVideoModal(null);
-                  handleWhatsAppInquiry(`您好，我想了解关于 "${activeVideoModal}" 的更多见证与产品资讯。`);
-                }}
-                className="w-full bg-[#008C9E] hover:bg-[#007382] text-white py-3 rounded-xl font-bold text-sm transition"
-              >
-                向客服深入了解此见证
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VideoModal
+        title={activeVideoTitle}
+        onClose={() => setActiveVideoTitle(null)}
+      />
 
     </div>
   );
